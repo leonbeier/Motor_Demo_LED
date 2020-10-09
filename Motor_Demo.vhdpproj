@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<ProjectRoot xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Header>Motor_Demo</Header>
+  <Items xsi:type="ProjectFolder">
+    <Header>Generated</Header>
+    <Items xsi:type="ProjectFileVHDL">
+      <Header>LED_Strip_Interface.vhd</Header>
+    </Items>
+    <Items xsi:type="ProjectFileVHDL">
+      <Header>Motor_Controller.vhd</Header>
+    </Items>
+    <Items xsi:type="ProjectFileVHDL">
+      <Header>Motor_Demo.vhd</Header>
+    </Items>
+    <Items xsi:type="ProjectFileVHDL">
+      <Header>Motor_Encoder.vhd</Header>
+    </Items>
+    <Items xsi:type="ProjectFileVHDL">
+      <Header>PWM_Generator.vhd</Header>
+    </Items>
+  </Items>
+  <Items xsi:type="ProjectFolder">
+    <Header>Libraries</Header>
+    <Items xsi:type="ProjectFileVHDP">
+      <Header>LED_Strip_Interface.vhdp</Header>
+    </Items>
+    <Items xsi:type="ProjectFileVHDP">
+      <Header>Motor_Controller.vhdp</Header>
+    </Items>
+    <Items xsi:type="ProjectFileVHDP">
+      <Header>Motor_Encoder.vhdp</Header>
+    </Items>
+    <Items xsi:type="ProjectFileVHDP">
+      <Header>PWM.vhdp</Header>
+    </Items>
+  </Items>
+  <Items xsi:type="ProjectFileVHDP">
+    <Header>Motor_Demo.vhdp</Header>
+  </Items>
+  <Items xsi:type="ProjectFileGHDP">
+    <Header>Motor_Demo_Sim.ghdp</Header>
+  </Items>
+  <CruviHSExtensions>
+    <string xsi:nil="true" />
+  </CruviHSExtensions>
+  <CruviLSExtensions>
+    <string xsi:nil="true" />
+    <string xsi:nil="true" />
+    <string>LevelShifterExtension</string>
+    <string xsi:nil="true" />
+  </CruviLSExtensions>
+  <IOVoltage>0</IOVoltage>
+</ProjectRoot>
