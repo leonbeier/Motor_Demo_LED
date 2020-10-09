@@ -1,0 +1,48 @@
+Component Motor_Demo_tb()
+{
+    SIGNAL finished : STD_LOGIC:= '0';
+    CONSTANT period_time : TIME := 83333 ps;
+
+    Process Sim_finished()
+    {
+        wait for 10000 us;
+        finished <= '1';
+        wait;
+    }
+
+    NewComponent Motor_Demo
+    (
+        Encoder_L => Encoder_L,
+        Encoder_R => Encoder_R,
+        Motor_LF => Motor_LF,
+        Motor_LB => Motor_LB,
+        Motor_RF => Motor_RF,
+        Motor_RB => Motor_RB,
+        Data_Out => Data_Out,
+        Data_Out_Debug => Data_Out_Debug,
+        CLK => CLK,
+    );
+
+    SIGNAL Encoder_L : STD_LOGIC ;
+    SIGNAL Encoder_R : STD_LOGIC ;
+    SIGNAL Motor_LF : STD_LOGIC ;
+    SIGNAL Motor_LB : STD_LOGIC ;
+    SIGNAL Motor_RF : STD_LOGIC ;
+    SIGNAL Motor_RB : STD_LOGIC ;
+    SIGNAL Data_Out : STD_LOGIC ;
+    SIGNAL Data_Out_Debug : STD_LOGIC ;
+    SIGNAL CLK : STD_LOGIC := '0';
+
+
+    Process Sim_CLK()
+    {
+        While(finished /= '1')
+        {
+            CLK <= '0';
+            wait for period_time/2;
+            CLK <= '1';
+            wait for period_time/2;
+        }
+        wait;
+    }
+}

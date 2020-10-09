@@ -1,0 +1,206 @@
+Main
+(
+    Encoder_L           : IN STD_LOGIC;   --E2.1
+    Encoder_R           : IN STD_LOGIC;   --E1.1
+    
+    Motor_LF            : OUT STD_LOGIC;  --M2.1
+    Motor_LB            : OUT STD_LOGIC;  --M2.2
+    Motor_RF            : OUT STD_LOGIC;  --M1.1
+    Motor_RB            : OUT STD_LOGIC;  --M1.2
+    
+    Data_Out            : OUT STD_LOGIC;
+)
+{
+    --For the LED Strip, just connect the WS2812 LED strip with 5V, GND and a 3.3V I/O. The input voltage range of the LEDs should allow that
+
+    CONSTANT LEDs : NATURAL := 18;
+    CONSTANT Brightness : NATURAL := 100; --0-255
+    
+    SIGNAL LED_Strip_Address       : NATURAL          range 0 to LEDs-1;
+    SIGNAL LED_Strip_Pixel         : STD_LOGIC_VECTOR (23 downto 0);
+
+    NewComponent LED_Strip_Interface
+    (
+        CLK_Frequency => 12000000,
+        LEDs          => LEDs,
+        WS2812        => true,
+
+        Data_Out      => Data_Out,
+        Address       => LED_Strip_Address,
+        Pixel         => LED_Strip_Pixel,
+    );
+    
+    CONSTANT Colors : NATURAL := 6;
+    TYPE Colors_type IS ARRAY (0 to Colors-1) OF STD_LOGIC_VECTOR(23 downto 0);
+    CONSTANT Colors_Arr : Colors_type :=
+    (
+        x"FF0000",
+        x"7F7F00",
+        x"00FF00",
+        x"007F7F",
+        x"0000FF",
+        x"7F007F"
+    );
+    
+    Process ()
+    {
+        Thread
+        {
+            VARIABLE color_reg : NATURAL range 0 to Colors := 0;
+            For(VARIABLE color : NATURAL range 0 to Colors := 0; color < Colors; color := color + 1)
+            {
+                For(VARIABLE i : INTEGER range 0 to LEDs := 0; i < LEDs; i := i + 1)
+                {
+                    Wait(50ms);  --Every 10ms one Pixel more
+                }
+                color_reg := color;
+            }
+        }
+        
+        If(LED_Strip_Address < i)
+        {
+            LED_Strip_Pixel(23 downto 16) <= STD_LOGIC_VECTOR(TO_UNSIGNED((TO_INTEGER(UNSIGNED(Colors_Arr(color)(23 downto 16))) * Brightness) / 255, 8));
+            LED_Strip_Pixel(15 downto 8) <= STD_LOGIC_VECTOR(TO_UNSIGNED((TO_INTEGER(UNSIGNED(Colors_Arr(color)(15 downto 8))) * Brightness) / 255, 8));
+            LED_Strip_Pixel(7 downto 0) <= STD_LOGIC_VECTOR(TO_UNSIGNED((TO_INTEGER(UNSIGNED(Colors_Arr(color)(7 downto 0))) * Brightness) / 255, 8));
+        }
+        Else
+        {
+            LED_Strip_Pixel(23 downto 16) <= STD_LOGIC_VECTOR(TO_UNSIGNED((TO_INTEGER(UNSIGNED(Colors_Arr(color_reg)(23 downto 16))) * Brightness) / 255, 8));
+            LED_Strip_Pixel(15 downto 8) <= STD_LOGIC_VECTOR(TO_UNSIGNED((TO_INTEGER(UNSIGNED(Colors_Arr(color_reg)(15 downto 8))) * Brightness) / 255, 8));
+            LED_Strip_Pixel(7 downto 0) <= STD_LOGIC_VECTOR(TO_UNSIGNED((TO_INTEGER(UNSIGNED(Colors_Arr(color_reg)(7 downto 0))) * Brightness) / 255, 8));
+        }
+    }
+
+--GENERATED SIGNALS---------------------------------------------------------------------------------------------
+
+    --Motor and Encoder----------------------------------------------------------------------------------------
+
+    --        xxxxx
+    --      x \ N / x
+    --    x  P \ / P  x
+    --    x-----O-----x   <- Encoder disc with north and south poles
+    --    x  N / \ N  x       -> Change from N to P causes one increment
+    --      x / P \ x         -> Holes_In_Disk = number of N/P pairs
+    --        xxxxx
+    --
+    --        xxxxx
+    --      x \XXX/ x
+    --    x    \X/    x
+    --    x-----O-----x   <- Encoder disc with holes
+    --    xXXXX/ \XXXXx       -> Change from black disk to hole causes one increment
+    --      xX/   \Xx         -> Holes_In_Disk = number of holes
+    --        xxxxx
+    --
+    -- If you don't know the number of poles, you can connect the encoder input with an LED (LED <= Encoder_L),
+    -- turn the encoder disk 360° and count how often the LED changes from off to on.
+    CONSTANT Motor_Holes_In_Disk          : NATURAL := 11;
+    -- __
+    --|  |   _________________
+    --|  |  | turns  | turns  | |
+    --|  ---    1    <- 150   --| <- encoder
+    --|  |  |_time___|_times__| |
+    --|__|
+    --
+    -- If you don't know the gear reduction ratio, you can count how often you have to turn the encoder disk
+    -- until you made a 360° turn with the wheel
+    CONSTANT Motor_Gear_Ratio             : NATURAL := 150;
+    --     ----->-----  <- Circumference
+    --    /   xxxxx   \
+    --   /  x  /|\  x  \
+    --  | x     |<- D x |  Example: Wheel diameter   = 80mm
+    -- /|\x     O     x\|/          -> Circumference = 80mm * pi = 80mm * 3.14
+    --  | x     |     x |                            = 251mm
+    --   \  x  \|/  x  /
+    --    \   xxxxx   /
+    --     -----<-----
+    CONSTANT Motor_Wheel_Circumference    : NATURAL := 251;
+    
+    --------------------------------------------------------------------------------
+    --The Controller keeps driving while Drive_L > Driven_L and Drive_R > Driven_R--
+    --------------------------------------------------------------------------------
+    
+    SIGNAL Motor_RST_Drive           : STD_LOGIC := '0';                     --'1' => Controller sets Driven to 0
+    SIGNAL Motor_Drive_L             : INTEGER   range -10000 to 10000 := 0; --Sets distance to drive with the left motor
+    SIGNAL Motor_Drive_R             : INTEGER   range -10000 to 10000 := 0; --Sets distance to drive with the right motor
+    SIGNAL Motor_Drive_Speed         : NATURAL   range 0 to 255 := 255;      --Sets speed of the motors (0 - 255)
+    SIGNAL Motor_Finished            : STD_LOGIC;                            --Controller sets Finished to '1' if distances are reached
+    
+    SIGNAL Motor_Driven_L            : NATURAL   range 0 to 10000;           --driven distance with left motor
+    SIGNAL Motor_Driven_R            : NATURAL   range 0 to 10000;           --driven distance with right motor
+    SIGNAL Motor_Error               : STD_LOGIC;                            --'1' if a motor doesn't turn or there is a problem with the encoder
+
+--GENERATED CODE------------------------------------------------------------------------------------------------
+
+    --Motor and Encoder----------------------------------------------------------------------------------------
+
+
+    Process Motor_Example ()
+    {
+        Thread
+        {
+            --Drive 10cm forward with speed = 230/255
+            Motor_Drive_L     <= 100;
+            Motor_Drive_R     <= 100;
+            Motor_Drive_Speed <= 180;
+            NewFunction startRoute (Motor_RST_Drive, Motor_Finished);
+            While(Motor_Finished = '0')
+            {
+                --Your code while driving
+            }
+            --Drive 10cm backward with speed = 180/255
+            Motor_Drive_L     <= -100;
+            Motor_Drive_R     <= -100;
+            Motor_Drive_Speed <= 180;
+            NewFunction driveRoute (Motor_RST_Drive, Motor_Finished);
+            --Repeat
+        }
+    }
+
+--GENERATED COMPONENTS------------------------------------------------------------------------------------------
+
+    --Motor and Encoder----------------------------------------------------------------------------------------
+
+
+    NewComponent Motor_Controller
+    (
+        CLK_Frequency       => 12000000,
+        PWM_Frequency       => 100000,
+        Bits_Resolution     => 8,
+        Holes_In_Disk       => Motor_Holes_In_Disk,
+        Gear_Ratio          => Motor_Gear_Ratio,
+        Wheel_Circumference => Motor_Wheel_Circumference,
+        Debounce_Cycles     => 500,
+        Max_Length          => 10000,
+        Error_Delay         => 500,
+        Correction_Step     => 1,
+        Correction_Cycles   => 1,
+        Length_Corr_Step    => 25,
+        Max_Length_Diff     => 10,
+        Accel_Length        => 50,
+        Brake_Length        => 100,
+        Accel_Speed         => 50,
+        Brake_Speed         => 100,
+        Max_Turn_Time       => 2000,
+        
+        Reset               => '0',
+        Encoder_L           => Encoder_L,
+        Encoder_R           => Encoder_R,
+        Motor_LF            => Motor_LF,
+        Motor_LB            => Motor_LB,
+        Motor_RF            => Motor_RF,
+        Motor_RB            => Motor_RB,
+        Enable              => '1',
+        RST_Drive           => Motor_RST_Drive,
+        Drive_L             => Motor_Drive_L,
+        Drive_R             => Motor_Drive_R,
+        Drive_Speed         => Motor_Drive_Speed,
+        Speed_L             => open,
+        Speed_R             => open,
+        Driven_L            => Motor_Driven_L,
+        Driven_R            => Motor_Driven_R,
+        Finished            => Motor_Finished,
+        Error               => Motor_Error,
+        Correction          => open,
+    );
+    
+}
